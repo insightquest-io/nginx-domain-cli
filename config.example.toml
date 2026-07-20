@@ -1,0 +1,74 @@
+# nginx-domain-cli configuration
+#
+# All fields have sensible defaults. Only override what you need.
+
+[nginx]
+# Path to the nginx binary
+bin = "/usr/sbin/nginx"
+
+# Directory where live domain config files are stored
+live_dir = "/etc/nginx/myapp-domains"
+
+# Staging directory for candidate configs (must be on same filesystem as live_dir)
+staging_dir = "/etc/nginx/myapp-domains-staging"
+
+# Previous-generation backup directory (for rollback)
+prev_dir = "/etc/nginx/myapp-domains-prev"
+
+# Base directory for SSL certificates (each domain gets a subdirectory)
+ssl_base_dir = "/etc/ssl/myapp-domains"
+
+# Path to the shared proxy config included by each InUse domain vhost
+proxy_conf = "/etc/nginx/myapp-proxy.conf"
+
+# Path to the main nginx.conf (used as template for test configs)
+nginx_conf = "/etc/nginx/nginx.conf"
+
+# Temp directory for nginx test configs
+temp_dir = "/tmp"
+
+[safety]
+# Deprecated compatibility field. `sync` accepts empty desired state as a
+# valid request to remove all managed configs; callers own fetch-failure
+# handling and should skip `sync` when desired state is unavailable.
+min_expected_domains = 0
+
+# Maximum number of domain config removals allowed per sync cycle.
+# Excess removals are deferred to subsequent cycles.
+max_removals_per_cycle = 2
+
+[health]
+# URL to GET after nginx reload to verify it is healthy
+url = "http://127.0.0.1:7070/health"
+
+# Timeout in seconds for the health check request
+timeout_secs = 5
+
+# Whether to perform health checks after reload
+enabled = true
+
+# ---------------------------------------------------------------------------
+# ACME / Let's Encrypt — automatic cert issuance via acme.sh + DNS-01
+# ---------------------------------------------------------------------------
+#
+# When [acme] AND [dns_provider] are both present, `sync` will issue/renew
+# certificates for every desired domain BEFORE computing the diff. Both
+# sections must be set together; setting only one is a config error.
+#
+# Prerequisite: acme.sh must be installed with `--nocron` (acme.sh's own
+# cron is forbidden — nginx-domain-cli is the single renewal actor).
+#
+#   curl https://get.acme.sh | sh -s email=ops@example.com --nocron
+
+# [acme]
+# email = "ops@example.com"
+# directory_url = "https://acme-v02.api.letsencrypt.org/directory"
+# staging = false                      # true = LE staging (no rate limit)
+# renewal_window_days = 30             # renew when cert expires within N days
+# acme_sh_home = "/var/lib/nginx-domain-cli/.acme.sh"  # absolute path; default: $HOME/.acme.sh
+# acme_bin = "/usr/local/bin/acme.sh"  # default: "acme.sh" (PATH lookup)
+# lock_dir = "/var/lock/nginx-domain-cli"
+
+# [dns_provider]
+# provider = "cloudflare"              # only "cloudflare" is supported today
+# api_token = "..."                    # alternative: export CF_Token env var

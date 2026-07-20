@@ -1,0 +1,53 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+  # Tag pushes: github.sha is the tagged commit. No PR fallback needed here.
+  GIT_COMMIT_HASH: ${{ github.sha }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+
+      - name: Install musl-tools
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+      - name: Cache cargo registry & build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-release-
+
+      - name: Build release (x86_64-unknown-linux-musl)
+        run: cargo build --release --target x86_64-unknown-linux-musl
+
+      - name: Package binary
+        run: |
+          mkdir -p dist
+          cp target/x86_64-unknown-linux-musl/release/nginx-domain-cli dist/
+          cp config.example.toml dist/
+          cp README.md dist/
+          cd dist && tar czf ../nginx-domain-cli-${{ github.ref_name }}-x86_64-linux-musl.tar.gz *
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: nginx-domain-cli-*.tar.gz
+          generate_release_notes: true
